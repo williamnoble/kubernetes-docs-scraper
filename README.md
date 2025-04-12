@@ -56,5 +56,14 @@ The scraper generates predominantly markdown files in the `output` directory:
 - `provider/aws_eks_docs.pdf`: AWS EKS User Guide
 - `provider/aws_eks_good_practice_guide.pdf`: AWS EKS Good Practice
 
+## GitHub Releases
+This project uses GitHub Actions to automatically run the scraper and create a release with the latest documentation. Each release includes a tar.gz file containing all the scraped documentation.
+
+You can find the latest release on the [Releases page](../../releases) of this repository. This allows you to download the documentation without having to run the scraper yourself.
+
+The workflow runs:
+- On every push to the main branch
+- Manually when triggered from the Actions tab
+
 ## Bugs
 - There's currently two files which fail to parse properly when creating `reference.md`.

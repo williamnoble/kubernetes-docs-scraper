@@ -35,10 +35,7 @@ def main() -> None:
     Main function to run the Kubernetes documentation scraper.
     """
     # Build Configuration and output directory
-    config = Configuration(
-        max_links_to_process= 4,
-        sections=["tutorials"],
-    )
+    config = Configuration()
 
     os.makedirs(config.output_dir, exist_ok=True)
     os.makedirs(f"{config.output_dir}/provider", exist_ok=True)
