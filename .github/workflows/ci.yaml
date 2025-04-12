@@ -1,0 +1,41 @@
+name: Run Scraper and Create release
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Create virtual environment
+        run: uv venv
+
+      - name: Install lxml
+        run:
+          uv pip install lxml
+
+      - name: Run main script
+        run: uv run -m main
+
+      - name: Archive output files
+        run: |
+          tar -czvf kubernetes-docs-output.tar.gz ./output
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubernetes-docs-artifacts
+          path: kubernetes-docs-output.tar.gz
