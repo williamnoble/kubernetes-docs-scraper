@@ -1,4 +1,5 @@
 import logging
+import os
 import urllib.parse
 from dataclasses import dataclass, field
 from typing import Optional, List
@@ -47,8 +48,6 @@ class Scraper:
         Returns:
             Tuple containing a list of failed links and the total number of processed links
         """
-        import os
-        from tqdm import tqdm
         section_output_path = os.path.join(config.output_dir, f"{section_name}.md")
         with open(section_output_path, "w", encoding="utf-8") as f:
             f.write(f"# Kubernetes Documentation: {section_name}\n\n")
