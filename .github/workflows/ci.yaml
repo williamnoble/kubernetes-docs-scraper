@@ -1,14 +1,13 @@
 name: Run Scraper and Create release
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
-
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -24,18 +23,44 @@ jobs:
         run: uv venv
 
       - name: Install lxml
-        run:
+        run: |
           uv pip install lxml
+          uv pip install lxml[html_clean]
 
       - name: Run main script
         run: uv run -m main
 
-      - name: Archive output files
+      - name: Archive docs
         run: |
-          tar -czvf kubernetes-docs-output.tar.gz ./output
+          tar -czvf docs.tar.gz --exclude=./docs/extras ./docs
 
-      - name: Upload artifacts
+      - name: Upload docs
         uses: actions/upload-artifact@v4
         with:
-          name: kubernetes-docs-artifacts
-          path: kubernetes-docs-output.tar.gz
+          name: docs
+          path: docs.tar.gz
+
+      - name: Archive extras
+        run: |
+          tar -czvf extras.tar.gz ./docs/extras
+
+      - name: Upload extras
+        uses: actions/upload-artifact@v4
+        with:
+          name: extras
+          path: extras.tar.gz
+
+      - name: Generate timestamp for release
+        id: timestamp
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: release-${{ github.sha }}
+          name: Kubernetes Docs Automated Release ${{ steps.timestamp.outputs.timestamp }}
+          draft: true
+          generate_release_notes: false
+          files: |
+            docs.tar.gz
+            extras.tar.gz
