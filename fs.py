@@ -14,16 +14,15 @@ class FileWriter:
     output_dir: str
 
     def write(
-            self,
-            filename: str,
-            content: str | list[str],
-            mode: str = "w",
-            header: str = None,
-            suffix: Filetype = Filetype.MARKDOWN.value,
-            multiple_documents: bool = False,
-             overwrite: bool = False,
+        self,
+        filename: str,
+        content: str | list[str],
+        mode: str = "w",
+        header: str = None,
+        suffix: Filetype = Filetype.MARKDOWN.value,
+        multiple_documents: bool = False,
+        overwrite: bool = False,
     ):
-
         file_name = f"{filename}{suffix}"
         file_path = os.path.join(self.output_dir, file_name)
 
@@ -41,7 +40,7 @@ class FileWriter:
             else:
                 # Handle iterable
                 for i, item in enumerate(content):
-                    if multiple_documents and i >0:
+                    if multiple_documents and i > 0:
                         self.print_document_separator(f)
                     f.write(item)
 

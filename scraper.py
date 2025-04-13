@@ -15,20 +15,26 @@ from fs import FileWriter
 @dataclass(frozen=True)
 class Configuration:
     """Configuration for the Kubernetes documentation scraper."""
+
     output_dir: str = "docs"
     max_links_to_process: int = -1  # used for testing to limit requests
-    sections: List[str] = field(default_factory=lambda: ["setup", "concepts", "tasks", "tutorials", "reference"])
+    sections: List[str] = field(
+        default_factory=lambda: ["setup", "concepts", "tasks", "tutorials", "reference"]
+    )
     # There's a few links which don't scrape properly because of page formatting
     # so we scrape separately.
-    skip_links: List[str] = field(default_factory=lambda: [
-        "https://kubernetes.io/docs/reference/glossary/"
-        "https://kubernetes.io/docs/reference/kubectl/kubectl-cmds/"
-    ])
+    skip_links: List[str] = field(
+        default_factory=lambda: [
+            "https://kubernetes.io/docs/reference/glossary/"
+            "https://kubernetes.io/docs/reference/kubectl/kubectl-cmds/"
+        ]
+    )
 
 
 @dataclass
 class Scraper:
     """Scraper for Kubernetes documentation pages."""
+
     session: requests.Session
     file_writer: FileWriter
     config: Configuration
@@ -49,15 +55,22 @@ class Scraper:
                 logging.error(f"Failed to fetch sidebar links for section: {section}")
                 continue
             links_to_process = links[
-                               :self.config.max_links_to_process if self.config.max_links_to_process != -1 else len(
-                                   links)]
+                : self.config.max_links_to_process
+                if self.config.max_links_to_process != -1
+                else len(links)
+            ]
             total_links = len(links_to_process)
 
             page_contents = []
             failed_links = []
 
             # Visit each link and save the content
-            for link in tqdm(links_to_process, desc=f"Downloading {section.title()}", unit="page", colour="green"):
+            for link in tqdm(
+                links_to_process,
+                desc=f"Downloading {section.title()}",
+                unit="page",
+                colour="green",
+            ):
                 # there's a few urls which we can't scrape by this function, so we'll skip them and scrape
                 # them using a different method.
                 if link in self.config.skip_links:
@@ -66,7 +79,7 @@ class Scraper:
 
                 results.links_processed += 1
                 resp = make_request(self.session, link)
-                parsed_page = BeautifulSoup(resp, 'lxml')
+                parsed_page = BeautifulSoup(resp, "lxml")
                 if not parsed_page:
                     failed_links.append(link)
                     continue
@@ -79,10 +92,13 @@ class Scraper:
                 page_contents.append(page_markdown)
 
             header = f"# Kubernetes Documentation: {section}\n\n"
-            self.file_writer.write(section, page_contents, "w", multiple_documents=True, header=header)
+            self.file_writer.write(
+                section, page_contents, "w", multiple_documents=True, header=header
+            )
 
             logging.info(
-                f"Completed scraping section: {section}. Processed {total_links} links with {len(failed_links)} failures.")
+                f"Completed scraping section: {section}. Processed {total_links} links with {len(failed_links)} failures."
+            )
 
             if failed_links:
                 results.failed_links.extend(failed_links)
@@ -90,13 +106,15 @@ class Scraper:
         print_summary(results)
 
     @staticmethod
-    def parse_sidebar_links(session: requests.Session, section_url: str) -> Optional[List[str]]:
+    def parse_sidebar_links(
+        session: requests.Session, section_url: str
+    ) -> Optional[List[str]]:
         """
         Find all links in the soup that belong to the specified section.
         """
         # Fetch the index page
         response = make_request(session, section_url)
-        soup = BeautifulSoup(response, 'lxml')
+        soup = BeautifulSoup(response, "lxml")
         if not soup:
             logging.error(f"Failed to fetch main page {section_url}")
             return None
@@ -105,18 +123,24 @@ class Scraper:
         # Parse our base_url into its components
         parsed_base = urllib.parse.urlparse(section_url)
         parsed_base_path = parsed_base.path
-        section_path = parsed_base_path if parsed_base_path.startswith('/') else f'/{parsed_base_path}'
+        section_path = (
+            parsed_base_path
+            if parsed_base_path.startswith("/")
+            else f"/{parsed_base_path}"
+        )
 
-        anchor_tags = soup.select('a.td-sidebar-link')
+        anchor_tags = soup.select("a.td-sidebar-link")
         for a in anchor_tags:
-            href = a.get('href')
+            href = a.get("href")
             if href:
                 # convert a relative url to an absolute url then parse it
                 absolute_url = urllib.parse.urljoin(section_url, href)
                 parsed_url = urllib.parse.urlparse(absolute_url)
                 # only keep the urls with same domain and section
-                if (parsed_url.netloc == parsed_base.netloc and
-                        parsed_url.path.startswith(section_path)):
+                if (
+                    parsed_url.netloc == parsed_base.netloc
+                    and parsed_url.path.startswith(section_path)
+                ):
                     all_links.append(absolute_url)
         return all_links
 
@@ -125,7 +149,7 @@ class Scraper:
         """
         Extract the main content from a page and convert it to markdown.
         """
-        content_div = parsed_page.select_one('.td-content')
+        content_div = parsed_page.select_one(".td-content")
         if not content_div:
             return None
 
@@ -137,17 +161,21 @@ class Scraper:
         return page_markdown
 
     def get_aws(self):
-        best_practice_pdf_url = "https://docs.aws.amazon.com/pdfs/eks/latest/best-practices/eks-bpg.pdf"
+        best_practice_pdf_url = (
+            "https://docs.aws.amazon.com/pdfs/eks/latest/best-practices/eks-bpg.pdf"
+        )
         response = self.session.get(best_practice_pdf_url, stream=True)
         response.raise_for_status()
-        with open("docs/extras/aws_eks_good_practice_guide.pdf", 'wb') as f:
+        with open("docs/extras/aws_eks_good_practice_guide.pdf", "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        eks_docs_url = "https://docs.aws.amazon.com/pdfs/eks/latest/userguide/eks-ug.pdf"
+        eks_docs_url = (
+            "https://docs.aws.amazon.com/pdfs/eks/latest/userguide/eks-ug.pdf"
+        )
         response = requests.get(eks_docs_url, stream=True)
         response.raise_for_status()  # Raise an exception for HTTP errors
-        with open("docs/extras/aws_eks_docs.pdf", 'wb') as f:
+        with open("docs/extras/aws_eks_docs.pdf", "wb") as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
@@ -160,27 +188,36 @@ class Scraper:
         raw_markdown_content = html2text(str(html))
         page_markdown = f"Page Source: {kubectl_url}\n\n"
         page_markdown += raw_markdown_content
-        header = f"# Kubernetes Documentation: Kubectl Commands (Generated)\n\n"
-        self.file_writer.write("kubectl", page_markdown,
-                               header=header)
+        header = "# Kubernetes Documentation: Kubectl Commands (Generated)\n\n"
+        self.file_writer.write("kubectl", page_markdown, header=header)
         print("Downloaded Kubectl command reference")
 
     def get_changelog(self):
         kubernetes_changelog_base_url: str = "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/heads/master/CHANGELOG/CHANGELOG-{major}.{minor}.md"
-        latest_kubernetes_version = make_request(self.session, "https://dl.k8s.io/release/stable.txt")
-        parts = latest_kubernetes_version.strip()[1:].split('.')
+        latest_kubernetes_version = make_request(
+            self.session, "https://dl.k8s.io/release/stable.txt"
+        )
+        parts = latest_kubernetes_version.strip()[1:].split(".")
         major = int(parts[0])
         minor = int(parts[1])
-        logging.info(f"Latest version: {latest_kubernetes_version} (major: {major}, minor: {minor})")
+        logging.info(
+            f"Latest version: {latest_kubernetes_version} (major: {major}, minor: {minor})"
+        )
         header = f"# Kubernetes Changelog upto {latest_kubernetes_version}\n\n"
         versions_to_process = range(minor, 9 - 1, -1)
         markdown = ""
-        for version in tqdm(versions_to_process, desc=f"Downloading Changelog", unit="version",
-                            colour="green"):
+        for version in tqdm(
+            versions_to_process,
+            desc="Downloading Changelog",
+            unit="version",
+            colour="green",
+        ):
             url = kubernetes_changelog_base_url.format(major=major, minor=version)
             response_text = make_request(self.session, url)
             markdown += response_text
-        self.file_writer.write("changelog", markdown, multiple_documents=True, header=header)
+        self.file_writer.write(
+            "changelog", markdown, multiple_documents=True, header=header
+        )
 
     def get_glossary(self):
         glossary_url = "https://kubernetes.io/docs/reference/glossary/?all=true"
@@ -189,15 +226,15 @@ class Scraper:
         raw_markdown_content = html2text(str(html))
         page_markdown = f"Page Source: {glossary_url}\n\n"
         page_markdown += raw_markdown_content
-        header = f"# Kubernetes Documentation: Glossary\n\n"
-        self.file_writer.write("glossary", page_markdown,
-                               header=header)
+        header = "# Kubernetes Documentation: Glossary\n\n"
+        self.file_writer.write("glossary", page_markdown, header=header)
         print("Downloaded Glossary")
 
 
 @dataclass
 class ScrapingResults:
     """Results of the scraping process."""
+
     failed_links: List[str] = field(default_factory=list)
     links_processed: int = 0
 
