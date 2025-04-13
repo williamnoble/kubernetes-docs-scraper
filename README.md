@@ -33,6 +33,7 @@ That said, I'm not much of a Python programmer so PRs welcome :)
 2. Install dependencies using uv:
    ```bash
    uv pip install lxml
+   uv pip install lxml[html_clean]
    ```
 
 3. Run via uv

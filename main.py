@@ -1,23 +1,20 @@
-from dataclasses import dataclass, field
 import logging
 import os
+from dataclasses import dataclass, field
 from typing import List
 
 import requests
 
-from scraper import Scraper, ScrapingResults, print_summary
 
+from fs import FileWriter
+from scraper import Scraper, print_summary, Configuration
 
-@dataclass(frozen=True)
-class Configuration:
-    """Configuration for the Kubernetes documentation scraper."""
-    kubernetes_docs_base_url: str = "https://kubernetes.io/docs"
-    kubernetes_changelog_base_url: str = "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/heads/master/CHANGELOG/CHANGELOG-{major}.{minor}.md"
-    output_dir: str = "./output"
-    max_links_to_process: int = -1  # used for testing to limit requests
-    # Available sections: ["setup", "concepts", "tasks", "tutorials", "reference"]
-    # sections: List[str] = field(default_factory=lambda: ["tutorials"])
-    sections: List[str] = field(default_factory=lambda: ["setup", "concepts", "tasks", "tutorials", "reference"])
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s: %(message)s',
+    filename='run.log'
+)
 
 def prepare_session() -> requests.Session:
     """Create and configure a request session."""
@@ -31,28 +28,27 @@ def prepare_session() -> requests.Session:
 
 
 def main() -> None:
-    """
-    Main function to run the Kubernetes documentation scraper.
-    """
     # Build Configuration and output directory
-    config = Configuration()
+    config = Configuration(
+        sections=["tutorials"],
+        max_links_to_process=2
+    )
 
     os.makedirs(config.output_dir, exist_ok=True)
     os.makedirs(f"{config.output_dir}/provider", exist_ok=True)
 
-    # Create a session
     session = prepare_session()
+    file_writer = FileWriter(config.output_dir)
+    scraper = Scraper(session=session, file_writer=file_writer)
 
-    # Create a Scraper instance
-    scraper = Scraper(session=session)
-
-    logging.info(f"Starting scraping with configuration: {config}")
+    # logging.info(f"Starting scraping with configuration: {config}")
     results = scraper.run(config)
     print_summary(results)
 
-    # scraper.get_changelog(config)
-    scraper.aws_eks()
-
+    scraper.fetch_changelog(config)
+    # scraper.aws_eks()
+    #
+    scraper.get_kubectl()
     print("Scraping complete.")
 
 

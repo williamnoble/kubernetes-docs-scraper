@@ -28,6 +28,7 @@ jobs:
       - name: Install lxml
         run:
           uv pip install lxml
+          uv pip install lxml[html_clean]
 
       - name: Run main script
         run: uv run -m main
