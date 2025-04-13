@@ -18,6 +18,22 @@ https://iximiuz.com/.
 - AWS EKS User Guide https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html
 - AWS EKS Good Practice Guide https://docs.aws.amazon.com/eks/latest/best-practices/introduction.html
 
+Docs:
+```
+.
+├── changelog.md
+├── concepts.md
+├── extras
+│   ├── aws_eks_docs.pdf
+│   └── aws_eks_good_practice_guide.pdf
+├── glossary.md
+├── kubectl.md
+├── reference.md
+├── setup.md
+├── tasks.md
+└── tutorials.md
+```
+
 ## Installation and Usage
 
 1. Clone this repository:

@@ -7,7 +7,7 @@ on:
 
 
 jobs:
-  build:
+  ci:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -35,7 +35,7 @@ jobs:
 
       - name: Archive docs
         run: |
-          tar -czvf docs.tar.gz --exclude=./docs/extras ./extras
+          tar -czvf docs.tar.gz --exclude=./docs/extras ./docs
 
       - name: Upload docs
         uses: actions/upload-artifact@v4
@@ -64,7 +64,6 @@ jobs:
           name: Kubernetes Docs Automated Release ${{ steps.timestamp.outputs.timestamp }}
           draft: true
           generate_release_notes: false
-          files:
+          files: |
             docs.tar.gz
             extras.tar.gz
-
