@@ -7,19 +7,23 @@ import requests
 from bs4 import BeautifulSoup
 from html2text import html2text, HTML2Text
 from readability import Document
-from requests import RequestException
 from tqdm import tqdm
 
 from fs import FileWriter
 
+
 @dataclass(frozen=True)
 class Configuration:
     """Configuration for the Kubernetes documentation scraper."""
-    kubernetes_docs_base_url: str = "https://kubernetes.io/docs"
-    kubernetes_changelog_base_url: str = "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/heads/master/CHANGELOG/CHANGELOG-{major}.{minor}.md"
-    output_dir: str = "./output"
+    output_dir: str = "docs"
     max_links_to_process: int = -1  # used for testing to limit requests
     sections: List[str] = field(default_factory=lambda: ["setup", "concepts", "tasks", "tutorials", "reference"])
+    # There's a few links which don't scrape properly because of page formatting
+    # so we scrape separately.
+    skip_links: List[str] = field(default_factory=lambda: [
+        "https://kubernetes.io/docs/reference/glossary/"
+        "https://kubernetes.io/docs/reference/kubectl/kubectl-cmds/"
+    ])
 
 
 @dataclass
@@ -35,21 +39,24 @@ class Scraper:
         """
         results = ScrapingResults()
         for section in self.config.sections:
-            section_url = f"{self.config.kubernetes_docs_base_url}/{section.lower()}/"
+            kubernetes_docs_base_url: str = "https://kubernetes.io/docs"
+            section_url = f"{kubernetes_docs_base_url}/{section.lower()}/"
             logging.info(f"Scraping section: {section} from {section_url}")
 
-            # find links in the sidebar
+            # Find links in the sidebar
             links = self.parse_sidebar_links(self.session, section_url)
             if not links:
                 logging.error(f"Failed to fetch sidebar links for section: {section}")
                 continue
-            links_to_process = links[:self.config.max_links_to_process if self.config.max_links_to_process != -1 else len(links)]
+            links_to_process = links[
+                               :self.config.max_links_to_process if self.config.max_links_to_process != -1 else len(
+                                   links)]
             total_links = len(links_to_process)
 
             page_contents = []
             failed_links = []
 
-            # visit each link and save the content
+            # Visit each link and save the content
             for link in tqdm(links_to_process, desc=f"Downloading {section.title()}", unit="page", colour="green"):
                 results.links_processed += 1
                 resp = make_request(self.session, link)
@@ -81,7 +88,7 @@ class Scraper:
         """
         Find all links in the soup that belong to the specified section.
         """
-        # fetch the index page
+        # Fetch the index page
         response = make_request(session, section_url)
         soup = BeautifulSoup(response, 'lxml')
         if not soup:
@@ -89,7 +96,7 @@ class Scraper:
             return None
 
         all_links = []
-        # parse our base_url into its components
+        # Parse our base_url into its components
         parsed_base = urllib.parse.urlparse(section_url)
         parsed_base_path = parsed_base.path
         section_path = parsed_base_path if parsed_base_path.startswith('/') else f'/{parsed_base_path}'
@@ -123,20 +130,18 @@ class Scraper:
         page_markdown += "\n\n-------------------------------------------------------------------------------\n\n"
         return page_markdown
 
-
     def get_aws(self):
         best_practice_pdf_url = "https://docs.aws.amazon.com/pdfs/eks/latest/best-practices/eks-bpg.pdf"
-
         response = self.session.get(best_practice_pdf_url, stream=True)
         response.raise_for_status()
-        with open("output/extras/aws_eks_good_practice_guide.pdf", 'wb') as f:
+        with open("docs/extras/aws_eks_good_practice_guide.pdf", 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
         eks_docs_url = "https://docs.aws.amazon.com/pdfs/eks/latest/userguide/eks-ug.pdf"
         response = requests.get(eks_docs_url, stream=True)
         response.raise_for_status()  # Raise an exception for HTTP errors
-        with open("output/extras/aws_eks_docs.pdf", 'wb') as f:
+        with open("docs/extras/aws_eks_docs.pdf", 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
@@ -155,7 +160,8 @@ class Scraper:
         print("Downloaded Kubectl command reference")
 
     def get_changelog(self):
-        latest_kubernetes_version = make_request(self.session, "https://dl.k8s.io/release/stable.txt" )
+        kubernetes_changelog_base_url: str = "https://raw.githubusercontent.com/kubernetes/kubernetes/refs/heads/master/CHANGELOG/CHANGELOG-{major}.{minor}.md"
+        latest_kubernetes_version = make_request(self.session, "https://dl.k8s.io/release/stable.txt")
         parts = latest_kubernetes_version.strip()[1:].split('.')
         major = int(parts[0])
         minor = int(parts[1])
@@ -165,13 +171,22 @@ class Scraper:
         markdown = ""
         for version in tqdm(versions_to_process, desc=f"Downloading Changelog", unit="version",
                             colour="green"):
-            url = self.config.kubernetes_changelog_base_url.format(major=major, minor=version)
+            url = kubernetes_changelog_base_url.format(major=major, minor=version)
             response_text = make_request(self.session, url)
             markdown += response_text
         self.file_writer.write("changelog", markdown, multiple_documents=True, header=header)
 
-    def handle_glossary(self):
+    def get_glossary(self):
         glossary_url = "https://kubernetes.io/docs/reference/glossary/?all=true"
+        response_text = make_request(self.session, glossary_url)
+        html = Document(response_text).summary()
+        raw_markdown_content = html2text(str(html))
+        page_markdown = f"Page Source: {glossary_url}\n\n"
+        page_markdown += raw_markdown_content
+        header = f"# Kubernetes Documentation: Glossary\n\n"
+        self.file_writer.write("glossary", page_markdown,
+                               header=header)
+        print("Downloaded Glossary")
 
 
 @dataclass

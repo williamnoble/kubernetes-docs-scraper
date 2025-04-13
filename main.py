@@ -1,13 +1,11 @@
+import argparse
 import logging
 import os
-from dataclasses import dataclass, field
-from typing import List
 
 import requests
 
-
 from fs import FileWriter
-from scraper import Scraper, print_summary, Configuration
+from scraper import Scraper, Configuration
 
 # Configure logging
 logging.basicConfig(
@@ -15,6 +13,7 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s: %(message)s',
     filename='run.log'
 )
+
 
 def prepare_session() -> requests.Session:
     """Create and configure a request session."""
@@ -27,14 +26,48 @@ def prepare_session() -> requests.Session:
     return session
 
 
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='Kubernetes Documentation Scraper')
+    parser.add_argument('--output',
+                        type=str,
+                        default="docs",
+                        help='Directory to store scraped documentation')
+
+    parser.add_argument('--max-links',
+                        type=int,
+                        default=-1,
+                        help='Maximum number of links to process (-1 for unlimited)')
+
+    parser.add_argument('--sections',
+                        type=str,
+                        nargs='+',
+                        default=["setup", "concepts", "tasks", "tutorials", "reference"],
+                        help='Sections to scrape (space-separated list)')
+
+    parser.add_argument('--skip-links',
+                        type=str,
+                        nargs='+',
+                        default=[
+                            "https://kubernetes.io/docs/reference/glossary/"
+                            "https://kubernetes.io/docs/reference/kubectl/kubectl-cmds/"
+                        ],
+                        help='Links to skip (space-separated list), append to default list')
+
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_arguments()
+
     config = Configuration(
-        sections=["tutorials"],
-        max_links_to_process=2
+        output_dir=args.output,
+        max_links_to_process=args.max_links,
+        sections=args.sections,
+        skip_links=args.skip_links
     )
 
     os.makedirs(config.output_dir, exist_ok=True)
-    os.makedirs(f"{config.output_dir}/provider", exist_ok=True)
 
     session = prepare_session()
     file_writer = FileWriter(config.output_dir)
@@ -46,6 +79,7 @@ def main() -> None:
     scraper.get_changelog()
     scraper.get_kubectl()
     scraper.get_aws()
+    scraper.get_glossary()
 
     print("Scraping complete.")
 
