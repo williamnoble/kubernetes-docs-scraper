@@ -31,10 +31,10 @@ class FileWriter:
                 f.write(header)
 
             if isinstance(content, str):
-                # Handle single string case
+                # Handle single
                 f.write(content)
             else:
-                # Handle iterable case
+                # Handle iterable
                 for i, item in enumerate(content):
                     if multiple_documents and i >0:
                         self.print_document_separator(f)

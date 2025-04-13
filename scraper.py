@@ -27,14 +27,15 @@ class Scraper:
     """Scraper for Kubernetes documentation pages."""
     session: requests.Session
     file_writer: FileWriter
+    config: Configuration
 
-    def run(self, config):
+    def get_kubernetes_docs(self):
         """
         Execute scraping process and collect results.
         """
         results = ScrapingResults()
-        for section in config.sections:
-            section_url = f"{config.kubernetes_docs_base_url}/{section.lower()}/"
+        for section in self.config.sections:
+            section_url = f"{self.config.kubernetes_docs_base_url}/{section.lower()}/"
             logging.info(f"Scraping section: {section} from {section_url}")
 
             # find links in the sidebar
@@ -42,15 +43,15 @@ class Scraper:
             if not links:
                 logging.error(f"Failed to fetch sidebar links for section: {section}")
                 continue
-            links_to_process = links[:config.max_links_to_process if config.max_links_to_process != -1 else len(links)]
+            links_to_process = links[:self.config.max_links_to_process if self.config.max_links_to_process != -1 else len(links)]
             total_links = len(links_to_process)
 
             page_contents = []
             failed_links = []
 
             # visit each link and save the content
-            for link in tqdm(links_to_process, desc=f"Processing: {section}", unit="page", colour="green"):
-                # results.links_processed += 1
+            for link in tqdm(links_to_process, desc=f"Downloading {section.title()}", unit="page", colour="green"):
+                results.links_processed += 1
                 resp = make_request(self.session, link)
                 parsed_page = BeautifulSoup(resp, 'lxml')
                 if not parsed_page:
@@ -73,7 +74,7 @@ class Scraper:
             if failed_links:
                 results.failed_links.extend(failed_links)
 
-        return results
+        print_summary(results)
 
     @staticmethod
     def parse_sidebar_links(session: requests.Session, section_url: str) -> Optional[List[str]]:
@@ -124,21 +125,22 @@ class Scraper:
 
 
     def get_aws(self):
-        good_practice_pdf_url = "https://docs.aws.amazon.com/pdfs/eks/latest/best-practices/eks-bpg.pdf"
-        response = self.session.get(good_practice_pdf_url, stream=True)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        with open("output/provider/aws_eks_good_practice_guide.pdf", 'wb') as f:
+        best_practice_pdf_url = "https://docs.aws.amazon.com/pdfs/eks/latest/best-practices/eks-bpg.pdf"
+
+        response = self.session.get(best_practice_pdf_url, stream=True)
+        response.raise_for_status()
+        with open("output/extras/aws_eks_good_practice_guide.pdf", 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
         eks_docs_url = "https://docs.aws.amazon.com/pdfs/eks/latest/userguide/eks-ug.pdf"
         response = requests.get(eks_docs_url, stream=True)
         response.raise_for_status()  # Raise an exception for HTTP errors
-        with open("output/provider/aws_eks_docs.pdf", 'wb') as f:
+        with open("output/extras/aws_eks_docs.pdf", 'wb') as f:
             for chunk in response.iter_content(chunk_size=8192):
                 f.write(chunk)
 
-        print("Downloaded AWS docs")
+        print("Downloaded Extras (AWS docs)")
 
     def get_kubectl(self):
         kubectl_url = "https://kubernetes.io/docs/reference/kubectl/kubectl-cmds/"
@@ -150,8 +152,9 @@ class Scraper:
         header = f"# Kubernetes Documentation: Kubectl Commands (Generated)\n\n"
         self.file_writer.write("kubectl", page_markdown,
                                header=header)
+        print("Downloaded Kubectl command reference")
 
-    def fetch_changelog(self, config: Configuration):
+    def get_changelog(self):
         latest_kubernetes_version = make_request(self.session, "https://dl.k8s.io/release/stable.txt" )
         parts = latest_kubernetes_version.strip()[1:].split('.')
         major = int(parts[0])
@@ -160,9 +163,9 @@ class Scraper:
         header = f"# Kubernetes Changelog upto {latest_kubernetes_version}\n\n"
         versions_to_process = range(minor, 9 - 1, -1)
         markdown = ""
-        for version in tqdm(versions_to_process, desc=f"Downloading Changelogs", unit="version",
-                            colour="blue"):
-            url = config.kubernetes_changelog_base_url.format(major=major, minor=version)
+        for version in tqdm(versions_to_process, desc=f"Downloading Changelog", unit="version",
+                            colour="green"):
+            url = self.config.kubernetes_changelog_base_url.format(major=major, minor=version)
             response_text = make_request(self.session, url)
             markdown += response_text
         self.file_writer.write("changelog", markdown, multiple_documents=True, header=header)
@@ -176,8 +179,6 @@ class ScrapingResults:
     """Results of the scraping process."""
     failed_links: List[str] = field(default_factory=list)
     links_processed: int = 0
-
-
 
 
 def print_summary(results: ScrapingResults) -> None:
@@ -198,15 +199,16 @@ def print_summary(results: ScrapingResults) -> None:
             print(f"  - {link}")
 
 
-
-
-def make_request(session, url, timeout=30):
+def make_request(session, url, timeout=30, stream=False):
     """
     Makes a GET request using the provided session.
     """
     try:
         response = session.get(url, timeout=timeout)
         response.raise_for_status()
-        return response.text
+        if stream:
+            return response.iter_content(chunk_size=8192)
+        else:
+            return response.text
     except requests.exceptions.RequestException as e:
         return f"Error making request to {url}: {str(e)}"

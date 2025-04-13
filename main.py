@@ -28,7 +28,6 @@ def prepare_session() -> requests.Session:
 
 
 def main() -> None:
-    # Build Configuration and output directory
     config = Configuration(
         sections=["tutorials"],
         max_links_to_process=2
@@ -39,16 +38,15 @@ def main() -> None:
 
     session = prepare_session()
     file_writer = FileWriter(config.output_dir)
-    scraper = Scraper(session=session, file_writer=file_writer)
+    scraper = Scraper(session=session, file_writer=file_writer, config=config)
 
-    # logging.info(f"Starting scraping with configuration: {config}")
-    results = scraper.run(config)
-    print_summary(results)
+    logging.info(f"Starting scraping with configuration: {config}")
 
-    scraper.fetch_changelog(config)
-    # scraper.aws_eks()
-    #
+    scraper.get_kubernetes_docs()
+    scraper.get_changelog()
     scraper.get_kubectl()
+    scraper.get_aws()
+
     print("Scraping complete.")
 
 
