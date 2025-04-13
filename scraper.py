@@ -58,6 +58,12 @@ class Scraper:
 
             # Visit each link and save the content
             for link in tqdm(links_to_process, desc=f"Downloading {section.title()}", unit="page", colour="green"):
+                # there's a few urls which we can't scrape by this function, so we'll skip them and scrape
+                # them using a different method.
+                if link in self.config.skip_links:
+                    logging.info(f"Skipping {link}")
+                    continue
+
                 results.links_processed += 1
                 resp = make_request(self.session, link)
                 parsed_page = BeautifulSoup(resp, 'lxml')

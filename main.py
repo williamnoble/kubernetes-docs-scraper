@@ -49,7 +49,7 @@ def parse_arguments() -> argparse.Namespace:
                         type=str,
                         nargs='+',
                         default=[
-                            "https://kubernetes.io/docs/reference/glossary/"
+                            "https://kubernetes.io/docs/reference/glossary/",
                             "https://kubernetes.io/docs/reference/kubectl/kubectl-cmds/"
                         ],
                         help='Links to skip (space-separated list), append to default list')
@@ -67,7 +67,7 @@ def main() -> None:
         skip_links=args.skip_links
     )
 
-    os.makedirs(config.output_dir, exist_ok=True)
+    os.makedirs(f"{config.output_dir}/extras", exist_ok=True)
 
     session = prepare_session()
     file_writer = FileWriter(config.output_dir)

@@ -18,16 +18,6 @@ https://iximiuz.com/.
 - AWS EKS User Guide https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html
 - AWS EKS Good Practice Guide https://docs.aws.amazon.com/eks/latest/best-practices/introduction.html
 
-## Requirements
-- Python 3.13 or higher
-- Dependencies:
-  - beautifulsoup4
-  - markdownify
-  - requests
-  - tqdm
-- [uv](https://github.com/astral-sh/uv) (Python package manager and runner)
-- [Just](https://github.com/casey/just) (Optional, Command Runner)
-
 ## Installation and Usage
 
 1. Clone this repository:
@@ -59,3 +49,6 @@ Each release contains two zip files, one contains official docs and the other su
 You can find the latest release on the [Releases page](../../releases) of this repository. 
 This allows you to download the documentation without having to run the scraper yourself.
 
+## A Note on Markdown
+Originally, I tried outputting the files as PDF but there were some issues with codeblocks exceeding the page width.
+I'm not familiar with PDF css so I went for Markdown so layout is not a concern.
